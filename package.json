@@ -1,16 +1,16 @@
 {
-  "name": "vital",
+  "name": "appcd_task",
   "version": "1.0.0",
-  "description": "Starter template for Vite with React (TypeScript). Supports Tailwind. Vitest and @react/testing-library configured and ready to go. Also ESLint, Prettier, Husky, Commit-lint and Atomic Design for components.",
-  "homepage": "https://github.com/jvidalv/vital#readme",
+  "description": "appCD task with react, react-flow, TailwindCSS",
+  "homepage": "https://github.com/jvidalv/appCD_task#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jvidalv/vital.git"
+    "url": "git+https://github.com/jvidalv/appCD_task.git"
   },
-  "author": "Josep Vidal <josepvidalvidal@gmail.com>",
+  "author": "Abhishek Jadhav <www.abhishek3jadhav@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jvidalv/vital/issues"
+    "url": "https://github.com/jvidalv/appCD_task/issues"
   },
   "keywords": [
     "react",
@@ -18,8 +18,6 @@
     "typescript",
     "vitest",
     "tailwind",
-    "template",
-    "starter",
     "eslint",
     "prettier",
     "husky",
@@ -31,21 +29,21 @@
     "not IE 11"
   ],
   "engines": {
-    "node": ">=14",
+    "node": ">=20.15.0",
     "yarn": ">=1.22.5"
   },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test": "vitest",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "postinstall": "husky install"
   },
   "dependencies": {
-    "@heroicons/react": "2.0.18",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "reactflow": "^11.11.4",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "17.4.2",
@@ -56,6 +54,7 @@
     "@types/node": "20.6.5",
     "@types/react": "^18.2.18",
     "@types/react-dom": "^18.2.7",
+    "@types/uuid": "^10",
     "@typescript-eslint/eslint-plugin": "^6.2.1",
     "@typescript-eslint/parser": "^6.2.1",
     "@vitejs/plugin-react": "^4.0.4",
@@ -75,5 +74,6 @@
     "vite": "^4.4.8",
     "vite-preset-react": "2.3.0",
     "vitest": "^0.34.5"
-  }
+  },
+  "packageManager": "yarn@4.3.1"
 }
