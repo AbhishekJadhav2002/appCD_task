@@ -37,16 +37,61 @@ function MindMap(props: { className?: string; log?: boolean }) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<{ label: string }>>();
+  const [error, setError] = useState<string | null>(null);
+
+  const isValidConnection = useCallback(
+    (connection: Connection): boolean => {
+      const { source, target } = connection;
+
+      const targetHasParent = edges.some((edge) => edge.target === target);
+      if (targetHasParent) {
+        setError("A node can only have one parent in a tree structure.");
+        return false;
+      }
+
+      if (!source || !target) {
+        setError("Invalid connection.");
+        return false;
+      }
+
+      if (source === target) {
+        setError("Cannot connect a node to itself.");
+        return false;
+      }
+
+      const isDescendant = (childId: string, parentId: string): boolean => {
+        const childEdge = edges.find((e) => e.target === childId);
+        if (!childEdge) return false;
+        if (childEdge.source === parentId) return true;
+        return isDescendant(childEdge.source, parentId);
+      };
+
+      if (isDescendant(source, target)) {
+        setError(
+          "This connection would create a cycle, which is not allowed in a tree structure."
+        );
+        return false;
+      }
+
+      setError(null);
+      return true;
+    },
+    [edges]
+  );
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    (params: Connection) => {
+      if (isValidConnection(params)) {
+        setEdges((eds) => addEdge(params, eds));
+      }
+    },
+    [setEdges, isValidConnection]
   );
 
   const onNodeChange = useCallback(
     (changes: NodeChange[]) => {
       if (log) {
-        changes.map((change) => {
+        changes.forEach((change) => {
           nodeLogger(change);
         });
       }
@@ -65,7 +110,7 @@ function MindMap(props: { className?: string; log?: boolean }) {
   const onNodesDelete = useCallback(
     (nodesToDelete: Node[]) => {
       if (log) {
-        nodesToDelete.map((node) => {
+        nodesToDelete.forEach((node) => {
           nodeLogger({ type: "remove", id: node.id });
         });
       }
@@ -106,16 +151,49 @@ function MindMap(props: { className?: string; log?: boolean }) {
 
   const deleteNode = useCallback(
     (nodeId: string) => {
-      setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+      setNodes((nds) => {
+        const nodesToDelete = new Set([nodeId]);
+        const findChildrenRecursively = (id: string) => {
+          nds.forEach((node) => {
+            if (
+              edges.some(
+                (edge) => edge.source === id && edge.target === node.id
+              )
+            ) {
+              nodesToDelete.add(node.id);
+              findChildrenRecursively(node.id);
+            }
+          });
+        };
+        findChildrenRecursively(nodeId);
+        return nds.filter((node) => !nodesToDelete.has(node.id));
+      });
       setEdges((eds) =>
-        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+        eds.filter(
+          (edge) =>
+            !edge.source.startsWith(nodeId) && !edge.target.startsWith(nodeId)
+        )
       );
     },
-    [setNodes, setEdges]
+    [setNodes, setEdges, edges]
   );
 
   const moveNodeUnder = useCallback(
     (nodeId: string, targetId: string) => {
+      if (nodeId === targetId) return;
+
+      const isDescendant = (childId: string, parentId: string): boolean => {
+        const childEdge = edges.find((e) => e.target === childId);
+        if (!childEdge) return false;
+        if (childEdge.source === parentId) return true;
+        return isDescendant(childEdge.source, parentId);
+      };
+
+      if (isDescendant(targetId, nodeId)) {
+        setError("Cannot move a node under its own descendant.");
+        return;
+      }
+
       setNodes((nds) => {
         const node = nds.find((n) => n.id === nodeId);
         const target = nds.find((n) => n.id === targetId);
@@ -132,8 +210,9 @@ function MindMap(props: { className?: string; log?: boolean }) {
         const newEdge = { id: uuidv4(), source: targetId, target: nodeId };
         return [...eds.filter((e) => e.target !== nodeId), newEdge];
       });
+      setError(null);
     },
-    [setNodes, setEdges, onNodeChange]
+    [setNodes, setEdges, onNodeChange, edges]
   );
 
   const onNodeDoubleClick = (_event: React.MouseEvent, node: Node) => {
@@ -159,7 +238,12 @@ function MindMap(props: { className?: string; log?: boolean }) {
     (event: React.KeyboardEvent) => {
       if (event.ctrlKey && event.key === "c") {
         event.preventDefault();
-        createNode();
+        const selectedNodes = nodes.filter((node) => node.selected);
+        if (selectedNodes.length === 1) {
+          createNode(selectedNodes[0]);
+        } else {
+          createNode();
+        }
       } else if (event.key === "Delete") {
         const selectedNodes = nodes.filter((node) => node.selected);
         selectedNodes.forEach((node) => deleteNode(node.id));
@@ -173,6 +257,10 @@ function MindMap(props: { className?: string; log?: boolean }) {
     [nodes, createNode, deleteNode, moveNodeUnder]
   );
 
+  const onErrorClick = useCallback(() => {
+    setError(null);
+  }, []);
+
   return (
     <div
       className={`h-[500px] w-full relative rounded border-2 border-transparent hover:border-black transition ${
@@ -182,6 +270,17 @@ function MindMap(props: { className?: string; log?: boolean }) {
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
+      {error && (
+        <div className="absolute top-2 right-2 flex items-center space-between p-2 bg-red-100 text-red-700 rounded z-20 text-sm">
+          {error}
+          <button
+            className="p-1 py-0 ml-2 bg-red-400 hover:bg-red-600 transition text-white rounded"
+            onClick={onErrorClick}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="absolute top-2 left-2 p-2 min-w-[150px] shadow bg-slate-100 z-10">
         <ul className="flex flex-col gap-2 text-[10px]">
           <li>
@@ -204,13 +303,13 @@ function MindMap(props: { className?: string; log?: boolean }) {
           </li>
           <li>Double Click - Edit Node Label</li>
           <li>
-            <kbd>Ctr</kbd> + <kbd>C</kbd> - Add Node
+            <kbd>Ctrl</kbd> + <kbd>C</kbd> - Add Node
           </li>
           <li>
             <kbd>Delete</kbd> - Delete Selected Node(s)
           </li>
           <li>
-            <kbd>Ctr</kbd> + <kbd>M</kbd> - Connect Selected Nodes
+            <kbd>Ctrl</kbd> + <kbd>M</kbd> - Move Selected Node Under Another
           </li>
         </ul>
       </div>
